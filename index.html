@@ -1,233 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Restaurant Billing System</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- SheetJS library for Excel file operations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <h1>🍽️ Restaurant Billing System</h1>
-        </header>
+      <header>
+        <h1>🍽️ Restaurant Billing System</h1>
+        <div class="header-controls">
+          <input
+            type="file"
+            id="excel-import-input"
+            accept=".xlsx,.xls"
+            style="display: none"
+          />
+          <button
+            class="btn btn-secondary"
+            id="excel-import-btn"
+            title="Import data from Excel file"
+          >
+            📥 Import Excel
+          </button>
+          <button
+            class="btn btn-secondary"
+            id="excel-export-btn"
+            title="Export all data to Excel file"
+          >
+            📤 Export Excel
+          </button>
+        </div>
+      </header>
 
-        <!-- Navigation Tabs -->
-        <nav class="tabs">
-            <button class="tab-btn active" data-tab="menu">Menu</button>
-            <button class="tab-btn" data-tab="billing">Billing</button>
-            <button class="tab-btn" data-tab="invoices">Invoices</button>
-            <button class="tab-btn" data-tab="sales">Sales Report</button>
-            <button class="tab-btn" data-tab="stock">Stock</button>
-        </nav>
+      <!-- Navigation Tabs -->
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="menu">Menu</button>
+        <button class="tab-btn" data-tab="billing">Billing</button>
+        <button class="tab-btn" data-tab="invoices">Invoices</button>
+        <button class="tab-btn" data-tab="sales">Sales Report</button>
+        <button class="tab-btn" data-tab="stock">Stock</button>
+      </nav>
 
-        <!-- Menu Management Section -->
-        <section id="menu-section" class="tab-content active">
-            <div class="section-header">
-                <h2>Menu Management</h2>
-                <button class="btn btn-primary" id="add-menu-btn">+ Add Item</button>
-            </div>
-            <div id="menu-grid" class="menu-grid">
-                <!-- Menu items will be dynamically inserted here -->
-            </div>
-        </section>
+      <!-- Menu Management Section -->
+      <section id="menu-section" class="tab-content active">
+        <div class="section-header">
+          <h2>Menu Management</h2>
+          <button class="btn btn-primary" id="add-menu-btn">+ Add Item</button>
+        </div>
+        <div id="menu-grid" class="menu-grid">
+          <!-- Menu items will be dynamically inserted here -->
+        </div>
+      </section>
 
-        <!-- Billing Section -->
-        <section id="billing-section" class="tab-content">
-            <div class="billing-container">
-                <div class="billing-menu">
-                    <h2>Menu Items</h2>
-                    <div id="billing-menu-grid" class="menu-grid">
-                        <!-- Menu items for billing will be displayed here -->
-                    </div>
-                </div>
-                <div class="billing-cart">
-                    <h2>Cart</h2>
-                    <div id="cart-items" class="cart-items">
-                        <p class="empty-cart">Cart is empty</p>
-                    </div>
-                    <div class="cart-footer">
-                        <div class="cart-total">
-                            <strong>Total: ₹<span id="cart-total">0</span></strong>
-                        </div>
-                        <button class="btn btn-success btn-large" id="pay-now-btn" disabled>Pay Now</button>
-                    </div>
-                </div>
+      <!-- Billing Section -->
+      <section id="billing-section" class="tab-content">
+        <div class="billing-container">
+          <div class="billing-menu">
+            <h2>Menu Items</h2>
+            <div id="billing-menu-grid" class="menu-grid">
+              <!-- Menu items for billing will be displayed here -->
             </div>
-        </section>
+          </div>
+          <div class="billing-cart">
+            <h2>Cart</h2>
+            <div id="cart-items" class="cart-items">
+              <p class="empty-cart">Cart is empty</p>
+            </div>
+            <div class="cart-footer">
+              <div class="cart-total">
+                <strong>Total: ₹<span id="cart-total">0</span></strong>
+              </div>
+              <button
+                class="btn btn-success btn-large"
+                id="pay-now-btn"
+                disabled
+              >
+                Pay Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <!-- Invoice Report Section -->
-        <section id="invoices-section" class="tab-content">
-            <div class="section-header">
-                <h2>Invoice Reports</h2>
-                <div class="filter-controls">
-                    <input type="date" id="invoice-start-date" class="date-input">
-                    <span>to</span>
-                    <input type="date" id="invoice-end-date" class="date-input">
-                    <button class="btn btn-secondary" id="filter-invoices-btn">Filter</button>
-                    <button class="btn btn-secondary" id="clear-invoice-filter-btn">Clear</button>
-                </div>
-            </div>
-            <div id="invoices-list" class="invoices-list">
-                <!-- Invoices will be displayed here -->
-            </div>
-        </section>
+      <!-- Invoice Report Section -->
+      <section id="invoices-section" class="tab-content">
+        <div class="section-header">
+          <h2>Invoice Reports</h2>
+          <div class="filter-controls">
+            <input type="date" id="invoice-start-date" class="date-input" />
+            <span>to</span>
+            <input type="date" id="invoice-end-date" class="date-input" />
+            <button class="btn btn-secondary" id="filter-invoices-btn">
+              Filter
+            </button>
+            <button class="btn btn-secondary" id="clear-invoice-filter-btn">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div id="invoices-list" class="invoices-list">
+          <!-- Invoices will be displayed here -->
+        </div>
+      </section>
 
-        <!-- Sales Report Section -->
-        <section id="sales-section" class="tab-content">
-            <div class="section-header">
-                <h2>Sales Report</h2>
-                <div class="filter-controls">
-                    <input type="date" id="sales-start-date" class="date-input">
-                    <span>to</span>
-                    <input type="date" id="sales-end-date" class="date-input">
-                    <button class="btn btn-secondary" id="filter-sales-btn">Filter</button>
-                    <button class="btn btn-secondary" id="clear-sales-filter-btn">Clear</button>
-                </div>
+      <!-- Sales Report Section -->
+      <section id="sales-section" class="tab-content">
+        <div class="section-header">
+          <h2>Sales Report</h2>
+          <div class="filter-controls">
+            <input type="date" id="sales-start-date" class="date-input" />
+            <span>to</span>
+            <input type="date" id="sales-end-date" class="date-input" />
+            <button class="btn btn-secondary" id="filter-sales-btn">
+              Filter
+            </button>
+            <button class="btn btn-secondary" id="clear-sales-filter-btn">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="sales-dashboard">
+          <div class="stats-cards">
+            <div class="stat-card">
+              <h3>Total Revenue</h3>
+              <p class="stat-value" id="total-revenue">₹0</p>
             </div>
-            <div class="sales-dashboard">
-                <div class="stats-cards">
-                    <div class="stat-card">
-                        <h3>Total Revenue</h3>
-                        <p class="stat-value" id="total-revenue">₹0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Total Orders</h3>
-                        <p class="stat-value" id="total-orders">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Average Order</h3>
-                        <p class="stat-value" id="avg-order">₹0</p>
-                    </div>
-                </div>
-                <div class="popular-items-section">
-                    <h3>Popular Items</h3>
-                    <div id="popular-items" class="popular-items">
-                        <!-- Popular items will be displayed here -->
-                    </div>
-                </div>
+            <div class="stat-card">
+              <h3>Total Orders</h3>
+              <p class="stat-value" id="total-orders">0</p>
             </div>
-        </section>
+            <div class="stat-card">
+              <h3>Average Order</h3>
+              <p class="stat-value" id="avg-order">₹0</p>
+            </div>
+          </div>
+          <div class="popular-items-section">
+            <h3>Popular Items</h3>
+            <div id="popular-items" class="popular-items">
+              <!-- Popular items will be displayed here -->
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <!-- Stock Management Section -->
-        <section id="stock-section" class="tab-content">
-            <div class="section-header">
-                <h2>Stock Management</h2>
-            </div>
-            <div id="stock-list" class="stock-list">
-                <!-- Stock items will be displayed here -->
-            </div>
-        </section>
+      <!-- Stock Management Section -->
+      <section id="stock-section" class="tab-content">
+        <div class="section-header">
+          <h2>Stock Management</h2>
+        </div>
+        <div id="stock-list" class="stock-list">
+          <!-- Stock items will be displayed here -->
+        </div>
+      </section>
     </div>
 
     <!-- Add/Edit Menu Item Modal -->
     <div id="menu-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="modal-title">Add Menu Item</h2>
-            <form id="menu-form">
-                <input type="hidden" id="menu-item-id">
-                <div class="form-group">
-                    <label for="menu-name">Item Name</label>
-                    <input type="text" id="menu-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="menu-price">Price (₹)</label>
-                    <input type="number" id="menu-price" min="0" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="menu-description">Description</label>
-                    <textarea id="menu-description" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="menu-image">Image URL</label>
-                    <input type="url" id="menu-image" placeholder="https://example.com/image.jpg">
-                    <small style="color: var(--text-light); font-size: 0.85rem;">Enter a valid image URL from the web</small>
-                </div>
-                <div class="form-group">
-                    <label for="menu-stock">Initial Stock</label>
-                    <input type="number" id="menu-stock" min="0" value="0" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save</button>
-                    <button type="button" class="btn btn-secondary" id="cancel-menu-btn">Cancel</button>
-                </div>
-            </form>
-        </div>
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 id="modal-title">Add Menu Item</h2>
+        <form id="menu-form">
+          <input type="hidden" id="menu-item-id" />
+          <div class="form-group">
+            <label for="menu-name">Item Name</label>
+            <input type="text" id="menu-name" required />
+          </div>
+          <div class="form-group">
+            <label for="menu-price">Price (₹)</label>
+            <input type="number" id="menu-price" min="0" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="menu-description">Description</label>
+            <textarea id="menu-description" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="menu-image">Image URL</label>
+            <input
+              type="url"
+              id="menu-image"
+              placeholder="https://example.com/image.jpg"
+            />
+            <small style="color: var(--text-light); font-size: 0.85rem"
+              >Enter a valid image URL from the web</small
+            >
+          </div>
+          <div class="form-group">
+            <label for="menu-stock">Initial Stock</label>
+            <input type="number" id="menu-stock" min="0" value="0" required />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancel-menu-btn"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Stock Adjustment Modal -->
     <div id="stock-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Adjust Stock</h2>
-            <form id="stock-form">
-                <input type="hidden" id="stock-item-id">
-                <div class="form-group">
-                    <label for="stock-item-name">Item Name</label>
-                    <input type="text" id="stock-item-name" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="stock-current">Current Stock</label>
-                    <input type="number" id="stock-current" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="stock-type">Adjustment Type</label>
-                    <select id="stock-type" required>
-                        <option value="in">Stock In (+)</option>
-                        <option value="out">Stock Out (-)</option>
-                        <option value="adjustment">Adjustment</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="stock-quantity">Quantity</label>
-                    <input type="number" id="stock-quantity" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label for="stock-notes">Notes (Optional)</label>
-                    <textarea id="stock-notes" rows="2"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Update Stock</button>
-                    <button type="button" class="btn btn-secondary" id="cancel-stock-btn">Cancel</button>
-                </div>
-            </form>
-        </div>
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Adjust Stock</h2>
+        <form id="stock-form">
+          <input type="hidden" id="stock-item-id" />
+          <div class="form-group">
+            <label for="stock-item-name">Item Name</label>
+            <input type="text" id="stock-item-name" readonly />
+          </div>
+          <div class="form-group">
+            <label for="stock-current">Current Stock</label>
+            <input type="number" id="stock-current" readonly />
+          </div>
+          <div class="form-group">
+            <label for="stock-type">Adjustment Type</label>
+            <select id="stock-type" required>
+              <option value="in">Stock In (+)</option>
+              <option value="out">Stock Out (-)</option>
+              <option value="adjustment">Adjustment</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="stock-quantity">Quantity</label>
+            <input type="number" id="stock-quantity" min="1" required />
+          </div>
+          <div class="form-group">
+            <label for="stock-notes">Notes (Optional)</label>
+            <textarea id="stock-notes" rows="2"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Update Stock</button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancel-stock-btn"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Invoice Detail Modal -->
     <div id="invoice-modal" class="modal">
-        <div class="modal-content modal-large">
-            <span class="close">&times;</span>
-            <h2>Invoice Details</h2>
-            <div id="invoice-details">
-                <!-- Invoice details will be displayed here -->
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary" id="print-invoice-btn">Print Invoice</button>
-                <button class="btn btn-secondary" id="close-invoice-btn">Close</button>
-            </div>
+      <div class="modal-content modal-large">
+        <span class="close">&times;</span>
+        <h2>Invoice Details</h2>
+        <div id="invoice-details">
+          <!-- Invoice details will be displayed here -->
         </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="print-invoice-btn">
+            Print Invoice
+          </button>
+          <button class="btn btn-secondary" id="close-invoice-btn">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Payment Confirmation Modal -->
     <div id="payment-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Payment Confirmation</h2>
-            <div id="payment-receipt">
-                <!-- Receipt will be displayed here -->
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary" id="close-payment-btn">OK</button>
-            </div>
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Payment Confirmation</h2>
+        <div id="payment-receipt">
+          <!-- Receipt will be displayed here -->
         </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="close-payment-btn">OK</button>
+        </div>
+      </div>
     </div>
 
     <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
 
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
-

@@ -122,6 +122,13 @@ function setupEventListeners() {
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', () => closeAllModals());
     });
+
+    // Excel Import/Export
+    document.getElementById('excel-import-btn').addEventListener('click', () => {
+        document.getElementById('excel-import-input').click();
+    });
+    document.getElementById('excel-import-input').addEventListener('change', handleExcelImport);
+    document.getElementById('excel-export-btn').addEventListener('click', handleExcelExport);
 }
 
 // Tab Switching
@@ -869,6 +876,8 @@ function getMenuItems() {
 
 function saveMenuItems(items) {
     localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(items));
+    // Export to Excel when menu items change (important data)
+    scheduleExcelExport();
 }
 
 function getCart() {
@@ -877,6 +886,7 @@ function getCart() {
 
 function saveCart(cart) {
     localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+    // Cart doesn't need to be in Excel export (it's temporary)
 }
 
 function getInvoices() {
@@ -885,6 +895,8 @@ function getInvoices() {
 
 function saveInvoices(invoices) {
     localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
+    // Export to Excel when invoices change (critical data)
+    scheduleExcelExport();
 }
 
 function getStockTransactions() {
@@ -893,6 +905,8 @@ function getStockTransactions() {
 
 function saveStockTransactions(transactions) {
     localStorage.setItem(STORAGE_KEYS.STOCK_TRANSACTIONS, JSON.stringify(transactions));
+    // Export to Excel when stock transactions change (important data)
+    scheduleExcelExport();
 }
 
 function escapeHtml(text) {
@@ -915,6 +929,263 @@ function closeAllModals() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.classList.remove('active');
     });
+}
+
+// ========== EXCEL STORAGE FUNCTIONS ==========
+
+function handleExcelImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            // Set flag to prevent auto-export during import
+            window.isImporting = true;
+            clearTimeout(window.excelExportTimeout); // Cancel any pending exports
+            
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+
+            // Import Menu Items
+            if (workbook.SheetNames.includes('Menu Items')) {
+                const menuSheet = workbook.Sheets['Menu Items'];
+                const menuData = XLSX.utils.sheet_to_json(menuSheet);
+                
+                if (menuData.length > 0) {
+                    const menuItems = menuData.map(row => ({
+                        id: parseInt(row.ID) || 0,
+                        name: row.Name || '',
+                        price: parseFloat(row.Price) || 0,
+                        description: row.Description || '',
+                        image: row['Image URL'] || '',
+                        stock: parseInt(row.Stock) || 0
+                    })).filter(item => item.id > 0 && item.name);
+                    
+                    if (menuItems.length > 0) {
+                        // Save directly without triggering export
+                        localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(menuItems));
+                    }
+                }
+            }
+
+            // Import Invoices
+            if (workbook.SheetNames.includes('Invoices')) {
+                const invoiceSheet = workbook.Sheets['Invoices'];
+                const invoiceData = XLSX.utils.sheet_to_json(invoiceSheet);
+                
+                if (invoiceData.length > 0) {
+                    // Group invoice items by Invoice ID
+                    const invoiceMap = {};
+                    invoiceData.forEach(row => {
+                        const invoiceId = row['Invoice ID'];
+                        if (!invoiceMap[invoiceId]) {
+                            invoiceMap[invoiceId] = {
+                                invoiceId: invoiceId,
+                                date: row.Date || '',
+                                time: row.Time || '',
+                                timestamp: new Date(`${row.Date} ${row.Time}`).toISOString(),
+                                items: [],
+                                total: parseFloat(row['Invoice Total']) || 0,
+                                paymentMethod: row['Payment Method'] || 'Cash'
+                            };
+                        }
+                        invoiceMap[invoiceId].items.push({
+                            itemId: 0, // Will be matched later if needed
+                            name: row['Item Name'] || '',
+                            price: parseFloat(row['Item Price']) || 0,
+                            quantity: parseInt(row.Quantity) || 0
+                        });
+                    });
+                    
+                    const invoices = Object.values(invoiceMap);
+                    if (invoices.length > 0) {
+                        // Save directly without triggering export
+                        localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
+                    }
+                }
+            }
+
+            // Import Stock Transactions
+            if (workbook.SheetNames.includes('Stock Transactions')) {
+                const stockSheet = workbook.Sheets['Stock Transactions'];
+                const stockData = XLSX.utils.sheet_to_json(stockSheet);
+                
+                if (stockData.length > 0) {
+                    const transactions = stockData.map(row => ({
+                        transactionId: row['Transaction ID'] || Date.now() + Math.random(),
+                        itemId: parseInt(row['Item ID']) || 0,
+                        itemName: row['Item Name'] || '',
+                        type: row.Type || '',
+                        quantity: parseInt(row.Quantity) || 0,
+                        timestamp: new Date(`${row.Date} ${row.Time}`).toISOString(),
+                        notes: row.Notes || ''
+                    })).filter(trans => trans.itemId > 0);
+                    
+                    if (transactions.length > 0) {
+                        // Save directly without triggering export
+                        localStorage.setItem(STORAGE_KEYS.STOCK_TRANSACTIONS, JSON.stringify(transactions));
+                        
+                        // Update stock levels based on transactions
+                        const menuItems = getMenuItems();
+                        menuItems.forEach(item => {
+                            const itemTransactions = transactions.filter(t => t.itemId === item.id);
+                            let stock = item.stock;
+                            itemTransactions.forEach(trans => {
+                                if (trans.type === 'in') {
+                                    stock += trans.quantity;
+                                } else if (trans.type === 'out') {
+                                    stock -= trans.quantity;
+                                } else if (trans.type === 'adjustment') {
+                                    stock = trans.quantity;
+                                }
+                            });
+                            item.stock = Math.max(0, stock);
+                        });
+                        // Save menu items directly without triggering export
+                        localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(menuItems));
+                    }
+                }
+            }
+
+            // Clear import flag
+            window.isImporting = false;
+
+            // Refresh UI
+            loadMenuItems();
+            loadBillingMenu();
+            loadInvoices();
+            loadSalesReport();
+            loadStockManagement();
+            
+            showToast('Data imported from Excel successfully!', 'success');
+        } catch (error) {
+            window.isImporting = false;
+            console.error('Import error:', error);
+            showToast('Error importing Excel: ' + error.message, 'error');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    
+    // Reset file input
+    event.target.value = '';
+}
+
+// Schedule Excel export (batches multiple rapid changes)
+function scheduleExcelExport() {
+    // Don't export if we're currently importing data
+    if (window.isImporting) {
+        return;
+    }
+    // Use setTimeout to batch multiple rapid changes and avoid too many downloads
+    clearTimeout(window.excelExportTimeout);
+    window.excelExportTimeout = setTimeout(() => {
+        exportDataToExcel(true); // true = silent export (no toast notification)
+    }, 2000); // Export 2 seconds after last change
+}
+
+// Export data to Excel file
+function exportDataToExcel(silent = false) {
+    try {
+        const menuItems = getMenuItems();
+        const invoices = getInvoices();
+        const stockTransactions = getStockTransactions();
+
+        // Create a new workbook
+        const wb = XLSX.utils.book_new();
+
+        // Menu Items Sheet
+        const menuData = menuItems.map(item => ({
+            'ID': item.id,
+            'Name': item.name,
+            'Price': item.price,
+            'Description': item.description || '',
+            'Image URL': item.image || '',
+            'Stock': item.stock
+        }));
+        if (menuData.length > 0) {
+            const menuWS = XLSX.utils.json_to_sheet(menuData);
+            XLSX.utils.book_append_sheet(wb, menuWS, 'Menu Items');
+        } else {
+            // Add empty sheet with headers if no data
+            const menuWS = XLSX.utils.json_to_sheet([{
+                'ID': '', 'Name': '', 'Price': '', 'Description': '', 'Image URL': '', 'Stock': ''
+            }]);
+            XLSX.utils.book_append_sheet(wb, menuWS, 'Menu Items');
+        }
+
+        // Invoices Sheet
+        const invoiceData = [];
+        invoices.forEach(invoice => {
+            invoice.items.forEach(item => {
+                invoiceData.push({
+                    'Invoice ID': invoice.invoiceId,
+                    'Date': invoice.date,
+                    'Time': invoice.time,
+                    'Item Name': item.name,
+                    'Quantity': item.quantity,
+                    'Item Price': item.price,
+                    'Subtotal': item.price * item.quantity,
+                    'Invoice Total': invoice.total,
+                    'Payment Method': invoice.paymentMethod || 'Cash'
+                });
+            });
+        });
+        if (invoiceData.length > 0) {
+            const invoiceWS = XLSX.utils.json_to_sheet(invoiceData);
+            XLSX.utils.book_append_sheet(wb, invoiceWS, 'Invoices');
+        } else {
+            const invoiceWS = XLSX.utils.json_to_sheet([{
+                'Invoice ID': '', 'Date': '', 'Time': '', 'Item Name': '', 'Quantity': '', 
+                'Item Price': '', 'Subtotal': '', 'Invoice Total': '', 'Payment Method': ''
+            }]);
+            XLSX.utils.book_append_sheet(wb, invoiceWS, 'Invoices');
+        }
+
+        // Stock Transactions Sheet
+        const stockData = stockTransactions.map(trans => ({
+            'Transaction ID': trans.transactionId,
+            'Item ID': trans.itemId,
+            'Item Name': trans.itemName,
+            'Type': trans.type,
+            'Quantity': trans.quantity,
+            'Date': new Date(trans.timestamp).toLocaleDateString('en-IN'),
+            'Time': new Date(trans.timestamp).toLocaleTimeString('en-IN'),
+            'Notes': trans.notes || ''
+        }));
+        if (stockData.length > 0) {
+            const stockWS = XLSX.utils.json_to_sheet(stockData);
+            XLSX.utils.book_append_sheet(wb, stockWS, 'Stock Transactions');
+        } else {
+            const stockWS = XLSX.utils.json_to_sheet([{
+                'Transaction ID': '', 'Item ID': '', 'Item Name': '', 'Type': '', 
+                'Quantity': '', 'Date': '', 'Time': '', 'Notes': ''
+            }]);
+            XLSX.utils.book_append_sheet(wb, stockWS, 'Stock Transactions');
+        }
+
+        // Generate filename with current date
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `restaurant_billing_data_${dateStr}.xlsx`;
+
+        // Write file
+        XLSX.writeFile(wb, fileName);
+        
+        if (!silent) {
+            showToast('Data exported to Excel successfully!', 'success');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        if (!silent) {
+            showToast('Error exporting to Excel: ' + error.message, 'error');
+        }
+    }
+}
+
+// Update handleExcelExport to use the shared function
+function handleExcelExport() {
+    exportDataToExcel(false); // false = show toast notification
 }
 
 // Make functions globally available for onclick handlers
